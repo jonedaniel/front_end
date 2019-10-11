@@ -1,189 +1,104 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import Calculator from './status-promote'
-import Ss from "./ss";
+import {namePrice} from "./lib/json-db";
 
-class Clock extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {date: new Date()}
-    }
-
-    componentDidMount() {
-        this.timerId = setInterval(() => this.setState({
-            date: new Date()
-        }), 1000);
-    }
-
-    componentWillUnmount() {
-        clearInterval(this.timerId);
-    }
-
-    render() {
-        return (
-            <div>It is {this.state.date.toLocaleString()}</div>
-        )
-    }
-
-}
-
-class Button extends React.Component {
+class FilterableProductTable extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            switch: 'ON'
-        };
+            filterText: ''
+        }
     }
-
-    handleClick = (e) => {
-        e.preventDefault();
+    onFilterTextChange = (v) => {
         this.setState({
-            switch: this.state.switch === 'ON' ? 'OFF' : 'ON'
+            filterText: v
         })
     };
 
     render() {
-
-        return (
-            <a href='http://baidu.com' onClick={this.handleClick}>
-                {this.state.switch}
-            </a>
-        )
-    }
-}
-
-function UserGreeting(props) {
-    return (
-        <h3>Welcome to here!</h3>
-    )
-}
-
-function GuestGreeting(props) {
-    return (
-        <h3>please sign up first!</h3>
-    )
-}
-
-function Greeting(props) {
-    if (props.isLogin) {
-        return <UserGreeting/>;
-    } else {
-        return <GuestGreeting/>;
-    }
-}
-
-function App(props) {
-    return (
-        <div>
-            <Greeting isLogin={true}/>
-            <Button/>
-            <Clock/>
+        return <div>
+            <SearchBar onFilterTextChange={this.onFilterTextChange}/>
+            <ProductTable filterText={this.state.filterText} products={this.props.products}/>
         </div>
-    )
-}
-
-function Mailbox(props) {
-    const unreadMessages = props.unreadMessages;
-    return (
-        <div>
-            <h1>Hello!</h1>
-            {unreadMessages.length > 0 ?
-                (<h2>
-                    You have {unreadMessages.length} unread messages.
-                </h2>) : (
-                    <h3>big mistake!</h3>
-                )
-            }
-        </div>
-    );
-}
-
-const messages = ['React', 'Re: React', 'Re:Re: React'];
-
-
-class NameForm extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {value: ''}
     }
+}
 
-    handleChange = (event) => {
-        console.log(event.target);
-        this.setState({value: event.target.value})
-    };
-
-    handleSubmit = (event) => {
-        alert('提交的名字： ' + this.state.value);
-        event.preventDefault();
+class SearchBar extends React.Component {
+    handleFilterTextChange = (e) => {
+        this.props.onFilterTextChange(e.target.value);
     };
 
     render() {
         return (
-            <form onSubmit={this.handleSubmit}>
-                <label>
-                    名字：
-                    <input type="text" value={this.state.value} onChange={this.handleChange}/>
-                </label>
-                <input type="submit" value="提交"/>
+            <form>
+                <input type="text" placeholder="Search..." onChange={this.handleFilterTextChange}/>
+                <p>
+                    <input type="checkbox"/>
+                    {' '}
+                    Only show products in stock
+                </p>
             </form>
         )
     }
 }
 
-class EasyForm extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            areaVal: '请输入',
-            inputVal: '请输入',
-            lastInput: []
-        }
-    }
-
-    handleChange = e => {
-        const name = e.target.name;
-        this.setState({
-            [name]: e.target.value
-        })
-    };
-    handleSubmit = e => {
-        const lastInput = this.state.lastInput.slice();
-        if (lastInput.findIndex(x => x === this.state.inputVal) === -1) {
-            lastInput.push(this.state.inputVal);
-        }
-        if (lastInput.findIndex(x => x === this.state.areaVal) === -1) {
-            lastInput.push(this.state.areaVal);
-        }
-        this.setState({
-            lastInput: lastInput
-        });
-        e.preventDefault();
-    };
-
+class ProductTable extends React.Component {
     render() {
+        let products = this.props.products;
+        let filterText = this.props.filterText;
+        console.log(filterText);
+        products = products.filter(x =>
+            !filterText || x.name.indexOf(filterText) !== -1
+        );
+        console.log(products);
+        let categoryRowMap = new Map();
+        products.forEach(v => {
+            if (categoryRowMap.get(v.category)) {
+                categoryRowMap.get(v.category).push(v);
+            } else {
+                categoryRowMap.set(v.category, [v]);
+            }
+        });
+        const nextRow = [];
+        for (let key of categoryRowMap.keys()) {
+            nextRow.push(<ProductCategoryRow key={key} categoryRow={key}/>);
+            nextRow.push(<ProductRow key={key+'row'} rows={categoryRowMap.get(key)}/>);
+        }
         return (
-            <div>
-                <form onSubmit={this.handleSubmit}>
-                    <label>
-                        文章:
-                        <textarea name="areaVal" value={this.state.areaVal} onChange={this.handleChange}/>
-                    </label>
-                    <label>
-                        姓名：
-                        <input name="inputVal" value={this.state.inputVal} onChange={this.handleChange}/>
-                    </label>
-                    <input type="submit" value="submit"/>
-                </form>
-                <br/>
-                {
-                    this.state.lastInput.map(inputStr =>
-                        <div key={inputStr}>
-                            <span>{inputStr}</span>
-                        </div>
-                    )
-                }
-            </div>
+            <table>
+                <thead>
+                <tr>
+                    <td>Name</td>
+                    <td>Price</td>
+                </tr>
+                </thead>
+                <tbody>
+                {nextRow}
+                </tbody>
+            </table>
         )
     }
 }
-ReactDOM.render(<Ss/>, document.getElementById('root'));
+
+class ProductCategoryRow extends React.Component {
+    render() {
+        return (<tr key={this.props.categoryRow}>
+            <td colSpan='2'>{this.props.categoryRow}</td>
+        </tr>)
+    }
+}
+
+class ProductRow extends React.Component {
+    render() {
+        return (
+            this.props.rows.map(row =>
+                <tr key={row.name}>
+                    <td>{row.name}</td>
+                    <td>{row.price}</td>
+                </tr>
+            )
+        )
+    }
+}
+
+ReactDOM.render(<FilterableProductTable products={namePrice}/>, document.getElementById('root'));
